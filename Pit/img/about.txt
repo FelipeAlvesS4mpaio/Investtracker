@@ -1,6 +1,0 @@
-This favicon was generated using the following font:
-
-- Font Title: Noto Sans Medefaidrin
-- Font Author: Copyright 2022 The Noto Project Authors (https://github.com/notofonts/medefaidrin)
-- Font Source: http://fonts.gstatic.com/s/notosansmedefaidrin/v22/WwkzxOq6Dk-wranENynkfeVsNbRZtbOIdLb1exeM4ZeuabBfmErWlT318e5A3rw.ttf
-- Font License: SIL Open Font License, 1.1 (http://scripts.sil.org/OFL))
