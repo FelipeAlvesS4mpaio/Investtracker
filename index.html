@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+    
+    <!-- JavaScript (Opcional) -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <!-- jQuery primeiro, depois Popper.js, depois Bootstrap JS -->
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14"></script>
+    <!-- Latest compiled and minified CSS -->
+    <link rel="stylesheet" href="css/bootstrap-select.min.css">
+
+    <!-- Latest compiled and minified JavaScript -->
+    <script src="js/bootstrap-select.min.js"></script>
+
+    <!-- (Optional) Latest compiled and minified JavaScript translation files -->
+    <script src="js/defaults-pt_BR.min.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <script src="js/firestore.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/ui/6.0.1/firebase-ui-auth__pt_br.js"></script>
+    <link type="text/css" rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/6.0.1/firebase-ui-auth.css" />
+    <script src="js/fontawesome.js"></script>
+    <link rel="apple-touch-icon" sizes="180x180" href="img/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="img/favicon-16x16.png">
+    <link rel="manifest" href="img/site.webmanifest">
+    <title>Invesπracker</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+<div id="app">
+<div class="sidebar">
+  <a href="#" @click="menuChange('menuItem1')" :class="menu.item1">Invesπracker</a>
+  <a v-if="userData!=null" href="#" @click="menuChange('menuItem2')" :class="menu.item2">Apoio de investidores</a>
+  <a v-if="userData!=null && !economistAproved" href="#" @click="menuChange('menuItem3')" :class="menu.item3" data-toggle="modal" data-target="#economistModal">Seja um consultor de ações</a>
+  <a v-if="userData!=null && economistAproved" href="#" @click="menuChange('menuItem5')" :class="menu.item5" data-toggle="modal">Lista de chamados</a>
+  <a v-if="userData==null" href="#" @click="menuChange('menuItem4')" data-toggle="modal" data-target="#loginModal" :class="menu.item4"> <img class="image rounded-circle mr-3" src="img/user.jpg">Login</a>
+  <a v-if="userData!=null" href="#" @click="menuChange('menuItem4')" data-toggle="modal" data-target="#loginModal" :class="menu.item4">Minha conta</a>
+  <a v-if="userData!=null && admin == true" href="#" @click="menuChange('menuItem6')" :class="menu.item6">Painel de admin</a>
+</div>
+
+<div class="content" v-show="currentPage == 'home'">
+
+  <ul class="nav nav-tabs">
+    <li class="nav-item">
+      <a id="navAll" class="nav-link active" data-toggle="tab" href="#all">Todas as Ações</a>
+    </li>
+    <li class="nav-item" v-if="userData!=null">
+      <a id="navFav" class="nav-link" :class="tabShow" data-toggle="tab" href="#fav">Favoritos</a>
+    </li>
+  </ul>
+  <div class="tab-content card">
+    <div id="all" class="ml-2 tab-pane fade active show">
+      <div class="row">
+        <div class="col-md-4"><h3 class="mt-2">Ações B3</h3></div>
+        <div class="col-md-8"> <button v-if="userData!=null" type="button" @click="refreshFavoritesAfterAdd()" class="btn btn-info float-right mr-4 mt-2">Favoritar</button></div>
+      </div>
+    
+      <div class="mt-3 form-group px-4">
+        <select @change="changeCurrentStock(selected)" v-if="selectComponent" class="form-control selectpicker" data-live-search="true" v-model="selected">
+          <option v-for="option in options" :data-tokens="option" :value="option">{{option}}</option>
+        </select>
+        <div class="alert alert-success mt-3" v-if="sucessAlert" role="alert">
+          Registro salvo nos favoritos.
+        </div>
+        <div class="alert alert-warning mt-3" v-if="warningAlert" role="alert">
+          Registro ja presente nos favoritos
+        </div>
+      </div> 
+      <canvas id="myChart"></canvas>
+    </div>
+    <div id="fav" v-if="userData!=null" class="ml-2 tab-pane fade" :class="tabShow">
+      <div class="row">
+        <div class="col-md-4"><h3 class="mt-2">Favoritos</h3></div>
+        <div class="col-md-8"> <button v-if="favOptions.length > 0" type="button" @click="reloadRemoveFavorites()" class="btn btn-danger float-right mr-4 mt-2">Remover</button></div>
+      </div>
+
+      <div class="mt-3 form-group px-4">
+        <select @change="changeCurrentFavStock(favSelected)" v-if="favSelectComponent" class="form-control selectpicker" :key="favSelected" data-live-search="true" v-model="favSelected">
+          <option v-for="favOption in favOptions" :data-tokens="favOption" :value="favOption">{{favOption}}</option>
+        </select>
+
+        <div class="alert alert-success mt-3" v-if="sucessAlert" role="alert">
+          Registro removido dos favoritos.
+        </div>
+
+        <canvas id="favChart"></canvas>
+       
+      </div> 
+
+    </div>
+  </div>
+
+</div>
+<div class="content" v-show="currentPage == 'tickets'">
+
+  <div class="card mt-4">
+    <div class="card-body">
+      <div class="row card-margin">
+        <div class="col-lg-4"><h3 class="mt-2">Lista de chamados para os investidores</h3></div>
+        <div class="col-lg-6">
+          <div class="input-group mt-2">
+            <input type="text" class="form-control" placeholder="Descrição do chamado" v-model="searchTickets" aria-label="Descrição do chamado" aria-describedby="basic-addon2">
+            <div class="input-group-append">
+              <button class="btn btn-outline-secondary fa fa-search" @click="loadTickets()" type="button"></button>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-2">
+          <button v-if="userData!=null" type="button" data-toggle="modal" data-target="#insertTickets" class="btn btn-info float-right mt-2">Novo chamado</button>
+        </div>
+      </div>
+
+      <div v-for="ticket in userTicketsList" class="row mt-2 mb-4">
+        <div class="col-md-12">  
+         <div class="card custom-card" @click="openChat(ticket.id)">
+          <div class="card-body">
+            <h4>{{ticket.name}}</h4>
+              <p>{{ticket.desc}}</p>
+              <small class="reference">{{ticket.creatorName}}: {{ticket.creatorEmail}} - {{formatDate(ticket.date)}}</small>
+          </div>
+          </div>
+        </div>
+        <div class="col-md-12 mt-2 mb-2">  
+          <button type="button" data-toggle="modal" data-target="#closeTicket" @click="closeTicket(ticket.id)" class="btn btn-danger float-right">Encerrar chamado</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="content" v-show="currentPage == 'allTickets'">
+
+  <ul class="nav nav-tabs">
+    <li class="nav-item">
+      <a id="navAll" class="nav-link active" @click="getAllTickets(false)" data-toggle="tab" href="#allTickets">Todos os chamados</a>
+    </li>
+    <li class="nav-item" v-if="userData!=null">
+      <a id="navFav" class="nav-link" data-toggle="tab" @click="getAllTickets(true)" href="#myTickets">Chamados em atendimento</a>
+    </li>
+  </ul>
+  <div class="tab-content card">
+    <div id="allTickets" class="ml-2 tab-pane fade active show">
+      
+      <div class="card mt-4 mr-2">
+        <div class="card-body">
+          <div class="row card-margin">
+            <div class="col-lg-4"><h3 class="mt-2">Lista de chamados para atendimento</h3></div>
+            <div class="col-lg-8">
+              <div class="input-group mt-2">
+                <input type="text" class="form-control" placeholder="Descrição do chamado" v-model="searchOpenTickets" aria-label="Descrição do chamado" aria-describedby="basic-addon2">
+                <div class="input-group-append">
+                  <button class="btn btn-outline-secondary fa fa-search" @click="getAllTickets(false)" type="button"></button>
+                </div>
+              </div>
+            </div>
+          </div>
+    
+          <div v-for="ticket in allTicketsList" class="row mt-2">
+            <div class="col-md-12">
+             <div class="card custom-card" @click="openChat(ticket.id)">
+              <div class="card-body">
+                <h4>{{ticket.name}}</h4>
+                  <p>{{ticket.desc}}</p>
+                  <small class="reference">{{ticket.creatorName}}: {{ticket.creatorEmail}} - {{formatDate(ticket.date)}}</small>
+              </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    
+    </div>
+    <div id="myTickets" v-if="userData!=null" class="ml-2 tab-pane fade">
+    
+      <div class="card mt-4 mr-2">
+        <div class="card-body">
+          <div class="row card-margin">
+            <div class="col-lg-4"><h3 class="mt-2">Lista dos meus atendimentos</h3></div>
+            <div class="col-lg-8">
+              <div class="input-group mt-2">
+                <input type="text" class="form-control" placeholder="Descrição do chamado" v-model="searchOpenTickets" aria-label="Descrição do chamado" aria-describedby="basic-addon2">
+                <div class="input-group-append">
+                  <button class="btn btn-outline-secondary fa fa-search" @click="getAllTickets(true)" type="button"></button>
+                </div>
+              </div>
+            </div>
+          </div>
+    
+          <div v-for="ticket in allTicketsList" class="row mt-2">
+            <div class="col-md-12">
+             <div class="card custom-card" @click="openChat(ticket.id)">
+              <div class="card-body">
+                <h4>{{ticket.name}}</h4>
+                  <p>{{ticket.desc}}</p>
+                  <small class="reference">{{ticket.creatorName}}: {{ticket.creatorEmail}} - {{formatDate(ticket.date)}}</small>
+              </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<div class="content" v-show="currentPage == 'admin'">
+
+  <div class="card mt-4">
+    <div class="card-body">
+        <div class="row card-margin">
+          <div class="col-lg-5"><h3 class="mt-2">Solicitações de cadastro de consultores de ações</h3></div>
+          <div class="col-lg-7">
+            <div class="input-group mt-2">
+              <input type="text" class="form-control" v-model="searchEconomistRequests" aria-describedby="basic-addon2">
+              <div class="input-group-append">
+                <button class="btn btn-outline-secondary fa fa-search" @click="economistRequests(searchEconomistRequests)" type="button"></button>
+              </div>
+            </div>
+          </div>
+        </div>
+     
+
+      <div v-for="economistRequest in economistRequestsList" class="row mt-2 mb-4">
+        <div class="col-md-12">  
+         <div class="card custom-card" @click="openEconomistRequestModal(economistRequest)">
+          <div class="card-body">
+           <div class="row">
+            <div class="col-md-4">
+              <h4>{{economistRequest.economistName}}</h4>
+            </div>
+            <div class="col-md-8">
+              <span class="badge badge-pill badge-success float-right" v-if="economistRequest.aproved">Aprovado</span>
+              <span class="badge badge-pill badge-warning float-right" v-if="!economistRequest.aproved">Pendente</span>
+            </div>
+          </div> 
+              <small class="reference">{{economistRequest.economistEmail}}</small>
+          </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+    <!-- Modal -->
+    <div class="modal fade" id="loginModal" tabindex="-1" role="dialog" aria-hidden="true">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 v-if="userData==null" class="modal-title" id="exampleModalLabel">Autenticação</h5>
+            <h5 v-if="userData!=null" class="modal-title" id="exampleModalLabel">Bem vindo(a)</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <div v-if="userData==null">
+              <div id="firebaseui-auth-container"></div>
+              <div id="loader">Loading...</div>
+            </div>
+            <div v-if="userData!=null">
+                <label for="name">Nome do usuário</label>
+                <input type="text" class="form-control mb-2" readonly v-model="userData.displayName" id="name">
+                <label for="email">Email</label>
+                <input type="text" class="form-control" readonly v-model="userData.email" id="email">
+            </div>
+          </div>
+          <div class="modal-footer" v-if="userData!=null">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Fechar</button>
+            <button type="button" @click="logOut" class="btn btn-danger">Log out</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <div class="modal fade" id="insertTickets" tabindex="-1" role="dialog" aria-hidden="true">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 v-if="userData!=null" class="modal-title" id="exampleModalLabel">Abrir chamado para os economistas.</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <div v-if="userData!=null">
+              <div class="alert alert-success" v-if="ticketSucess" role="alert">
+                Chamado cadastrado.
+              </div>
+                <label for="name">Assunto do chamado</label>
+                <input type="text" class="form-control mb-2" v-model="ticketName" id="name">
+
+                <label for="desc">Descrição</label>
+                <textarea class="form-control mb-2" v-model="ticketDesc" id="desc"></textarea>
+            </div>
+          </div>
+          <div class="modal-footer" v-if="userData!=null">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Fechar</button>
+            <button type="button" @click="addTicket()" class="btn btn-success">Cadastrar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="economistModal" tabindex="-1" role="dialog" aria-hidden="true">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 v-if="userData!=null" class="modal-title">Descreva suas qualidades e porquê quer ser um dos nossos consultores de ações:</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <div v-if="userData!=null">
+              <div class="alert alert-success" v-if="economistSucess" role="alert">
+                Seus dados foram cadastrados, e posteriormente entraremos em contato sobre sua parceria conosco.
+              </div>
+                <label for="economistName">Nome</label>
+                <input type="text" class="form-control mb-2" v-model="userData.displayName" readonly id="economistName">
+                <label for="economistEmail">Email</label>
+                <input type="text" class="form-control mb-2" v-model="userData.email" readonly id="economistEmail">
+
+                <label for="economistDesc">Descrição</label>
+                <textarea class="form-control mb-2" :readonly="economistSucess" v-model="economistDesc" id="economistDesc"></textarea>
+            </div>
+          </div>
+          <div class="modal-footer" v-if="userData!=null">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Fechar</button>
+            <button type="button" @click="addEconomist()" v-if="!economistPending" class="btn btn-success">Enviar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="chat" tabindex="-1" role="dialog" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-custom" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 v-if="userData!=null" class="modal-title" id="exampleModalLabel">{{chat.name}}</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+         
+          <div class="modal-body modal-body-custom">
+            <div v-if="userData!=null">
+               <div v-for="item in chat.msg">
+                 <div v-if="userData.email != item.msgSender" class="msg_box float-left msg_left">
+                   <small><span class="user">{{item.msgSenderName}}</span> - <span class="timestamp">{{formatDate(item.msgDate)}}</span></small>
+                   <p>{{item.msgText}}</p>
+                 </div>
+                 <div v-if="userData.email == item.msgSender" class="msg_box float-right">
+                  <small><span class="user">{{item.msgSenderName}}</span> - <span class="timestamp">{{formatDate(item.msgDate)}}</span></small>
+                  <p>{{item.msgText}}</p>
+                </div>
+                </div>
+            </div>
+          </div>
+          <div class="modal-footer" v-if="userData!=null">
+            <textarea @keyup="handleKeyUp" class="form-control" v-model="msgToSend"></textarea>
+            <button type="button" @click="sendMessage(chat.id)" class="btn btn-success">Enviar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal -->
+<div class="modal fade" id="closeTicket" tabindex="-1" aria-labelledby="closeTicketLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="closeTicketLabel">Confirmar ação</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        Deseja realmente encerrar este chamado?
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" @click="confirmClose()">Encerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="EconomistRequestModal" tabindex="-1" role="dialog" aria-labelledby="EconomistRequestModalTitle" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="exampleModalLongTitle">{{economistRequestModalName}} - {{economistRequestModalEmail}}</h5> 
+        <span class="badge badge-pill badge-success ml-2 mt-2" v-if="economistRequestModalAproved">Aprovado</span>
+        <span class="badge badge-pill badge-warning ml-2 mt-2" v-if="!economistRequestModalAproved">Pendente</span>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        {{economistRequestModalContent}}
+      </div>
+      <div class="modal-footer">
+        <button type="button" @click="changeEconomistStatus(false)" class="btn btn-danger">Reprovar</button>
+        <button type="button" @click="changeEconomistStatus(true)" class="btn btn-success">Aprovar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+    
+</div>
+<script>
+var app = new Vue({
+  el: '#app',
+  data: {
+    menu : {
+        item1 : 'active',
+        item2 : '',
+        item3 : '',
+        item4 : '',
+        item5: '',
+        item6: '' 
+    },
+    chart: {},
+    selected: 'Petrobrás - PETR4.SAO',
+    favSelected: '',
+    options: [
+    ],
+    favOptions: [
+    ],
+    myChart : {},
+    favChart : null,
+    selectComponent : false,
+    favSelectComponent : false,
+    userData : null,
+    sucessAlert : false,
+    warningAlert : false,
+    tabShow : "",
+    currentPage: "home",
+    ticketName: "",
+    ticketDesc: "",
+    ticketSucess: false,
+    userTicketsList: [],
+    searchTickets: "",
+    economistSucess: false,
+    economistDesc: "",
+    economistAproved: false,
+    economistPending: false,
+    searchOpenTickets: "",
+    allTicketsList: [],
+    chat: {},
+    chatMsg: [],
+    msgToSend: "",
+    ticketToClose: "",
+    admin: false,
+    economistRequestsList: [],
+    searchEconomistRequests: "",
+    economistRequestModalEmail: "",
+    economistRequestModalName: "",
+    economistRequestModalContent: "",
+    economistRequestModalAproved: false,
+    economistRequestModalId: "",
+  },
+  methods: {
+    menuChange : function(menuItem){
+        let _this = this;
+        switch(menuItem) {
+            case "menuItem1":
+                _this.menu.item1 = 'active';
+                _this.menu.item2 = '';
+                _this.menu.item3 = '';
+                _this.menu.item4 = '';
+                _this.menu.item5 = '';
+                _this.menu.item6 = '';
+                _this.currentPage = "home";
+                break;
+            case "menuItem2":
+                _this.menu.item1 = '';
+                _this.menu.item2 = 'active';
+                _this.menu.item3 = '';
+                _this.menu.item4 = '';
+                _this.menu.item5 = '';
+                _this.menu.item6 = '';
+                _this.currentPage = "tickets";
+                break;
+            case "menuItem3":
+                _this.menu.item1 = '';
+                _this.menu.item2 = '';
+                _this.menu.item3 = 'active';
+                _this.menu.item4 = '';
+                _this.menu.item5 = '';
+                _this.menu.item6 = '';
+                break;
+            case "menuItem4":
+                _this.menu.item1 = '';
+                _this.menu.item2 = '';
+                _this.menu.item3 = '';
+                _this.menu.item4 = 'active';
+                _this.menu.item5 = '';
+                _this.menu.item6 = '';
+                break;
+            case "menuItem5":
+                _this.menu.item1 = '';
+                _this.menu.item2 = '';
+                _this.menu.item3 = '';
+                _this.menu.item4 = '';
+                _this.menu.item5 = 'active';
+                _this.menu.item6 = '';
+                _this.currentPage = "allTickets";
+                break;
+
+            case "menuItem6":
+                _this.menu.item1 = '';
+                _this.menu.item2 = '';
+                _this.menu.item3 = '';
+                _this.menu.item4 = '';
+                _this.menu.item5 = '';
+                _this.menu.item6 = 'active';
+                _this.currentPage = 'admin';
+                break;
+            default:
+        }
+    },
+    getStocks : function(StockKey){
+
+      return new Promise(resolve =>{
+        axios.get('https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol='+StockKey+'&apikey=GA035EB92K27JQ8U').then(function (response) {
+        
+            return resolve(response);
+        
+          });
+      })
+      
+      
+    }, buildChart : function(chartLabels, chartDatasets){
+      const ctx = document.getElementById('myChart');
+      this.myChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: chartLabels,
+          datasets: chartDatasets
+        },
+        options: {
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+        }
+    });
+
+    },formatChartData: async function(StockKey){
+      var stocks = await this.getStocks(StockKey);
+
+      var chartLabels =Object.keys(stocks.data["Time Series (Daily)"]);
+      chartLabels = chartLabels.reverse();
+      var chartData = stocks.data["Time Series (Daily)"];
+      var formatedchartLabels = [];
+      var formatedchartData = []; //valores das ações diárias
+      var adjustedCloseChartData = []; //valores de fechamento das ações diárias
+      
+      chartLabels.forEach(element => {
+        var dt = element.split('-');
+        formatedchartLabels.push(dt[2] + '/' +dt[1]+'/'+dt[0]);
+        formatedchartData.push(chartData[element])
+      });
+
+      formatedchartData.forEach(element => {
+        adjustedCloseChartData.push(element["5. adjusted close"]);
+      });
+
+        var datasets = [
+          {
+            label: stocks.data["Meta Data"]["2. Symbol"],
+            data : adjustedCloseChartData,
+            borderWidth: 3,
+            borderColor: 'rgb(75, 192, 192)',
+          }
+
+        ]
+        console.log(stocks);
+        this.buildChart(formatedchartLabels,datasets);
+    },changeCurrentStock: async function(stock){
+      var currentStock = stock.split(' - ');
+      this.myChart.destroy();
+      await this.formatChartData(currentStock[1]);
+    }, fillStockList: async function(){
+      var _this = this;
+      return new Promise(resolve =>{    
+        db.collection("Stocks").get().then((querySnapshot) => {
+           querySnapshot.forEach(doc => {
+            _this.options.push(doc.data().codigo);
+            console.log(_this.options);
+           });
+           resolve(_this.selectComponent = true);
+        });
+      })
+    },
+    fillFavoritesList: async function(){
+      var _this = this;
+      return new Promise(resolve =>{    
+        db.collection("Favorites").doc(_this.userData.email).get().then((doc) => {
+            _this.favOptions = doc.data().list;
+            if(_this.favOptions.length > 0){
+              _this.favSelected = _this.favOptions[0];
+            }
+            resolve(_this.favSelectComponent = true); 
+          });
+           
+        });
+    }, loadFavorites : async function(){
+      await this.fillFavoritesList();
+      $(".selectpicker").selectpicker("render");
+      await this.changeCurrentFavStock(this.favSelected);
+    },
+    generateLoginForm: function(){
+      var _this = this;
+      var ui = new firebaseui.auth.AuthUI(firebase.auth());
+      var uiConfig = {
+          callbacks: {
+            signInSuccessWithAuthResult: function(authResult, redirectUrl) {
+              // User successfully signed in.
+              // Return type determines whether we continue the redirect automatically
+              // or whether we leave that to developer to handle.
+              return true;
+            },
+            uiShown: function() {
+              // The widget is rendered.
+              // Hide the loader.
+              document.getElementById('loader').style.display = 'none';
+            },
+
+          },
+          // Will use popup for IDP Providers sign-in flow instead of the default, redirect.
+          signInFlow: 'popup',
+          signInSuccessUrl: 'index.html',
+          signInOptions: [
+            // Leave the lines as is for the providers you want to offer your users.
+            firebase.auth.EmailAuthProvider.PROVIDER_ID,
+          ],
+          // Terms of service url.
+          tosUrl: 'index.html',
+          // Privacy policy url.
+          privacyPolicyUrl: 'index.html'
+      };
+
+      // The start method will wait until the DOM is loaded.
+      ui.start('#firebaseui-auth-container', uiConfig);
+    },
+    logOut: async function(){
+      var _this = this;
+      return new Promise(resolve=>{
+        firebase.auth().signOut().then(() => {
+            _this.userData = null;
+            document.location.href = "index.html";
+            resolve(_this.userData);
+          }).catch((error) => {
+            // An error happened.
+          });
+      });
+    },
+    AddToFavorites: async function(){
+      var _this = this;
+      return new Promise(resolve=>{
+         var fav = db.collection("Favorites").doc(_this.userData.email);
+         var favListItens = [];
+         console.log("//////FAVORITOS/////////////////////////////////////////////////////");
+         console.log(fav);
+         fav.get().then((doc)=>{
+          if(doc.exists){
+            favListItens = doc.data().list;
+            if(!favListItens.includes(_this.selected)){
+              favListItens.push(_this.selected);
+              fav.set({ list: favListItens}).then(()=>{
+                _this.sucessAlert = true;
+                setTimeout(() => {
+                  _this.sucessAlert = false;
+                }, 3000);
+                resolve("sucess");
+              });
+            }else{
+              _this.warningAlert = true;
+              setTimeout(() => {
+                  _this.warningAlert = false;
+                }, 3000);
+            }
+          }else{
+            fav.set({ list:[_this.selected]}).then(resolve("sucess"));
+          }
+         })
+      })
+    },
+    refreshFavoritesAfterAdd: async function(){
+        await this.AddToFavorites();
+        await this.timeoutFunc(1000);
+        document.location.href = "index.html?stock=" + this.selected;
+    },
+    timeoutFunc : async function(ms){
+      return new Promise(resolve=>{
+        setTimeout(() => {
+                  resolve("sucess");
+                }, ms);
+      });
+     
+    }, removeFavotires : async function(){
+      var _this = this;
+
+      return new Promise(resolve=>{
+        var fav = db.collection("Favorites").doc(_this.userData.email);
+        var favListItens = [];
+        fav.get().then((doc)=>{
+          if(doc.exists){
+            favListItens = doc.data().list;
+            const indexToRemove = favListItens.indexOf(_this.favSelected);
+            favListItens.splice(indexToRemove, 1);
+            _this.favOptions = favListItens; 
+            _this.favSelected = "";
+            console.log(_this.favSelectComponent);
+            fav.set({list: favListItens}).then(()=>{
+              _this.sucessAlert = true;
+            })
+          }
+        })
+      });
+    }, reloadRemoveFavorites : async function(){
+      this.removeFavotires();
+      await this.timeoutFunc(1000);
+      this.sucessAlert = false;
+      document.location.href = "index.html?fav=true"
+    },buildFavChart : function(chartLabels, chartDatasets){
+      const ctx = document.getElementById('favChart');
+      this.favChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: chartLabels,
+          datasets: chartDatasets
+        },
+        options: {
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+        }
+    });
+
+    },formatFavChartData: async function(StockKey){
+      var stocks = await this.getStocks(StockKey);
+
+      var chartLabels =Object.keys(stocks.data["Time Series (Daily)"]);
+      chartLabels = chartLabels.reverse();
+      var chartData = stocks.data["Time Series (Daily)"];
+      var formatedchartLabels = [];
+      var formatedchartData = []; //valores das ações diárias
+      var adjustedCloseChartData = []; //valores de fechamento das ações diárias
+      var openChartData = []; //valor de abertura
+      var maxChartData = []; //valor máximo
+      var minChartData = []; //valor mínimo
+      
+      chartLabels.forEach(element => {
+        var dt = element.split('-');
+        formatedchartLabels.push(dt[2] + '/' +dt[1]+'/'+dt[0]);
+        formatedchartData.push(chartData[element])
+      });
+
+      formatedchartData.forEach(element => {
+        adjustedCloseChartData.push(element["5. adjusted close"]);
+        openChartData.push(element["1. open"]);
+        maxChartData.push(element["2. high"]);
+        minChartData.push(element["3. low"]);
+      });
+
+        var datasets = [
+          {
+            label: stocks.data["Meta Data"]["2. Symbol"] +" fechamento líquido",
+            data : adjustedCloseChartData,
+            borderWidth: 3,
+            borderColor: 'rgb(75, 192, 192)',
+          },
+          {
+            label: stocks.data["Meta Data"]["2. Symbol"] +" valor de abertura",
+            data : openChartData,
+            borderWidth: 3,
+            borderColor: 'rgb(245, 119, 77)',
+          },
+          {
+            label: stocks.data["Meta Data"]["2. Symbol"] +" valor máximo",
+            data : maxChartData,
+            borderWidth: 3,
+            borderColor: 'rgb(245, 245, 77)',
+          },
+          {
+            label: stocks.data["Meta Data"]["2. Symbol"] +" valor mínimo",
+            data : minChartData,
+            borderWidth: 3,
+            borderColor: 'rgb(245, 81, 81)',
+          },
+
+        ]
+        console.log(stocks);
+        this.buildFavChart(formatedchartLabels,datasets);
+    },changeCurrentFavStock: async function(stock){
+      var currentStock = stock.split(' - ');
+      if(this.favChart != null){
+
+      this.favChart.destroy();
+
+      }
+      await this.formatFavChartData(currentStock[1]);
+    }, insertTicket: async function(){
+      var _this = this;
+      return new Promise(resolve=>{
+        var ticket = db.collection("Tickets").doc(_this.userData.email+"|"+_this.ticketName).set({
+            creatorEmail: _this.userData.email,
+            creatorName: _this.userData.displayName,
+            name: _this.ticketName,
+            desc: _this.ticketDesc,
+            msg: [],
+            listOfHelpers: [],
+            numbersOfInteractions: 0,
+            date: new Date(),
+            status: "OPEN",
+        }).then(() => {
+          resolve("sucess");
+        });
+      })
+    }, addTicket: async function(){
+      await this.insertTicket();
+      this.ticketSucess = true;
+      console.log("aaaaaaaaaaaaaaaaaa");
+      console.log(this.ticketSucess);
+      await this.timeoutFunc(1000);
+      this.ticketSucess = false;
+      $('#insertTickets').modal('toggle');
+      this.ticketName = "";
+      this.ticketDesc = "";
+      await this.loadTickets();
+    }, getTickets: async function(){
+      return new Promise(resolve=>{
+        var _this = this;
+        var ticketsResponse = [];
+        var userTickets = db.collection("Tickets").where("creatorEmail", "==", _this.userData.email).where("status", "==", "OPEN").get().then((querySnapshot)=>{
+          querySnapshot.forEach((doc) => {
+            var ticket = doc.data();
+            ticket.id = doc.id;
+            var name = ticket.name.toUpperCase();
+            var desc = ticket.desc.toUpperCase();
+            var searchValue = _this.searchTickets.trim().toUpperCase();
+
+            if(searchValue != ""){
+              if(name.includes(searchValue) || desc.includes(searchValue)){
+                ticketsResponse.push(ticket);
+              }
+            }else{
+              ticketsResponse.push(ticket);
+            }
+          });
+          resolve(ticketsResponse);
+        });
+      });
+    }, loadTickets: async function(){
+      this.userTicketsList = await this.getTickets();
+      console.log(this.userTicketsList);
+    },
+    insertEconomist: async function(){
+      var _this = this;
+      return new Promise(resolve=>{
+        var ticket = db.collection("Economists").doc(_this.userData.email).set({
+            economistEmail: _this.userData.email,
+            economistName: _this.userData.displayName,
+            economistDesc: _this.economistDesc,
+            aproved: false
+        }).then(() => {
+          resolve("sucess");
+        });
+      })
+    },
+    addEconomist: async function(){
+      var _this = this;
+      await _this.insertEconomist();
+      var economist =  db.collection("Economists").doc(_this.userData.email);
+      economist.get().then((doc) => {
+          if (doc.exists) {
+            _this.economistSucess = true;
+            _this.economistPending = true;
+          } else {
+              // doc.data() will be undefined in this case
+              
+          }
+      }).catch((error) => {
+          console.log("Error getting document:", error);
+      });
+      await this.timeoutFunc(2000);
+      $('#economistModal').modal('toggle');
+    },
+    selectEconomist: async function(){
+      var _this = this;
+      return new Promise(resolve=>{
+        var economist =  db.collection("Economists").doc(_this.userData.email);
+        economist.get().then((doc) => {
+          if (doc.exists) {
+            _this.economistDesc = doc.data().economistDesc;
+            _this.economistSucess = true;
+            _this.economistAproved = doc.data().aproved;
+            if(_this.economistAproved == false){
+              _this.economistPending = true;
+            }
+            resolve("sucess");
+          } else {
+              // doc.data() will be undefined in this case
+              
+          }
+        })
+      })
+    },
+    getEconomist: async function(){
+      await this.selectEconomist();
+    }, getAllTickets: function(economistFilter){
+      var _this = this;
+      var searchValue = _this.searchOpenTickets.trim().toUpperCase();
+      var userTickets = db.collection("Tickets").where("status", "==", "OPEN").where("creatorEmail", "!=", _this.userData.email)
+            .onSnapshot((querySnapshot) => {
+              _this.allTicketsList = [];
+                querySnapshot.forEach((doc) => {
+                  var ticket = doc.data();
+                  ticket.id = doc.id;
+                  var name = ticket.name.toUpperCase();
+                  var desc = ticket.desc.toUpperCase();
+                  var listOfHelpers = ticket.listOfHelpers;
+                  if(economistFilter){
+                    if(listOfHelpers.includes(_this.userData.email)){
+                    if(searchValue != ""){
+                        if(name.includes(searchValue) || desc.includes(searchValue)){
+                          _this.allTicketsList.push(ticket);
+                        }
+                      }else{
+                        _this.allTicketsList.push(ticket);
+                      }
+                    }
+                  }else{
+                    if(searchValue != ""){
+                        if(name.includes(searchValue) || desc.includes(searchValue)){
+                          _this.allTicketsList.push(ticket);
+                        }
+                      }else{
+                        _this.allTicketsList.push(ticket);
+                      }
+                  }
+                });
+                _this.orderTickets(economistFilter);
+            });
+        
+    },
+    orderTickets: function(economistFilter){
+      var _this = this;
+      if(economistFilter){
+        _this.allTicketsList.sort((a,b) => b.date - a.date);
+      }else{
+        _this.allTicketsList.sort((a,b) => a.numbersOfInteractions - b.numbersOfInteractions);
+      }
+    },
+    formatDate : function(datePar){
+      var date = new Date( datePar.seconds * 1000 + datePar.nanoseconds / 1000000,);
+      var day = String(date.getDate()).padStart(2, '0');
+      var mouth =  String(date.getMonth()+1).padStart(2,"0");
+      var year = date.getFullYear();
+      return `${day}/${mouth}/${year}`;
+    },
+    openChat : function(documentId){
+      $('#chat').modal('toggle');
+      var _this = this;
+      var userTickets = db.collection("Tickets").doc(documentId).onSnapshot((querySnapshot) => {
+                _this.chat = querySnapshot.data();
+                _this.chat.id = querySnapshot.id;
+                _this.chatMsg = _this.chat.msg;
+                console.log(_this.chatMsg);
+            });
+    },
+    sendMessage: function(ticketId){
+      var _this = this;
+      var msgToSend = _this.msgToSend;
+      if(msgToSend.trim() == ""){
+        return;
+      }
+      var msgObject = {
+        msgSender: _this.userData.email,
+        msgDate: new Date(),
+        msgText: msgToSend,
+        msgSenderName: _this.userData.displayName,
+      };
+      var userTickets = db.collection("Tickets").doc(ticketId).get().then((doc) => {
+        var document = doc.data();
+        if(_this.userData.email != document.creatorEmail){
+          if(!document.listOfHelpers.includes(_this.userData.email)){
+            document.listOfHelpers.push(_this.userData.email);
+            document.numbersOfInteractions++;
+          }
+        }
+        document.msg.push(msgObject);
+        db.collection("Tickets").doc(ticketId).set(document).then(()=>{_this.msgToSend = ""; });
+      });
+    },handleKeyUp: function(event) {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        this.sendMessage(this.chat.id)
+      }
+    },
+    closeTicket: function(ticketId){
+      _this = this;
+      _this.ticketToClose = ticketId;
+      $('#closeTicket').modal('toggle');
+    },
+    confirmClose: function(){
+      db.collection("Tickets").doc(_this.ticketToClose).get().then((doc)=>{
+        var document = doc.data();
+        document.status = "CLOSED";
+        db.collection("Tickets").doc(_this.ticketToClose).set(document).then(()=>{
+          _this.ticketToClose = ""; 
+          _this.loadTickets();
+          $('#closeTicket').modal('toggle');
+        });
+      })
+    },
+    isAdmin: async function(){
+      var _this = this;
+      return new Promise(resolve=>{
+        db.collection("Admin").doc(_this.userData.email).get().then((doc)=>{
+        var document = doc.data();
+        if(document != null && document != undefined && document.admin == true){
+          resolve(true);
+        }else{
+          resolve(false);
+        }
+      })
+      });
+    },
+    checkAdmin: async function(){
+      var _this = this;
+      var response = await _this.isAdmin();
+      _this.admin = response;
+    },
+    economistRequests : function(searchParam){
+      var _this = this;
+      var documents = db.collection("Economists").onSnapshot((querySnapshot) => {
+        var returnObject = null;
+        var returnArray = [];
+              querySnapshot.forEach((doc)=>{
+                if(searchParam != null && searchParam != undefined && searchParam.trim() != ''){
+                  searchParam = searchParam.toLowerCase();
+                  var name = doc.data().economistName.toLowerCase();
+                  var email = doc.data().economistEmail.toLowerCase();
+                  if(name.includes(searchParam) || email.includes(searchParam)){
+                    returnObject = doc.data();
+                    returnObject.id = doc.id;
+                    returnArray.push(returnObject);
+                  }
+                }else{
+                  returnObject = doc.data();
+                  returnObject.id = doc.id;
+                  returnArray.push(returnObject);
+                }
+                _this.economistRequestsList = returnArray;
+              })
+            });
+    },
+    openEconomistRequestModal: function(economistRequest){
+      var _this = this;
+      _this.economistRequestModalEmail = "";
+      _this.economistRequestModalName = "";
+      _this.economistRequestModalContent = "";
+      _this.economistRequestModalAproved = false;
+
+      _this.economistRequestModalEmail = economistRequest.economistEmail;
+      _this.economistRequestModalName = economistRequest.economistName;
+      _this.economistRequestModalContent = economistRequest.economistDesc;
+      _this.economistRequestModalAproved = economistRequest.aproved;
+      _this.economistRequestModalId = economistRequest.id;
+
+      $('#EconomistRequestModal').modal('toggle');
+    },
+    changeEconomistStatus:function(aproved){
+      var _this = this;
+      if(aproved){
+        db.collection("Economists").doc(_this.economistRequestModalId).get().then(doc=>{
+          var objectToInsert = doc.data();
+          objectToInsert.aproved = true;
+          db.collection("Economists").doc(_this.economistRequestModalId).set(objectToInsert).then(()=>{
+            _this.economistRequestModalEmail = "";
+            _this.economistRequestModalName = "";
+            _this.economistRequestModalContent = "";
+            _this.economistRequestModalAproved = false;
+
+            $('#EconomistRequestModal').modal('toggle');
+          });
+        })
+      }else{
+        db.collection("Economists").doc(_this.economistRequestModalId).delete().then(()=>{
+            _this.economistRequestModalEmail = "";
+            _this.economistRequestModalName = "";
+            _this.economistRequestModalContent = "";
+            _this.economistRequestModalAproved = false;
+
+            $('#EconomistRequestModal').modal('toggle');
+        })
+      }
+      
+    }
+  },
+  mounted: async function () {
+    var _this = this;
+    await this.fillStockList();
+    $(".selectpicker").selectpicker("render");
+    console.log(this.selectComponent);
+    this.generateLoginForm();  
+    const queryString = window.location.search;
+    const urlParams = new URLSearchParams(queryString);
+    const stockUrl = urlParams.get('stock');
+    const favUrl =  urlParams.get('fav');
+  
+    if(stockUrl != null){
+
+      var currentStock = stockUrl.split(' - ');
+
+      this.selected = stockUrl;
+
+      await this.formatChartData(currentStock[1]);
+      window.history.pushState("","",'index.html');
+    }else{
+      await this.formatChartData('PETR4.SAO');
+    }
+
+    firebase.auth().onAuthStateChanged((user) => {
+      if (user) {
+        console.log("USUARIO LOGADO COM SUCESSO");
+        console.log(user);
+        _this.userData = user;
+        console.log(_this.userData);
+        _this.loadFavorites();
+        _this.loadTickets();
+        _this.getEconomist();
+        _this.getAllTickets(false);
+        _this.checkAdmin();
+        _this.economistRequests();
+
+      if(favUrl == "true"){
+        
+        $('#navAll').removeClass('active');
+        $('#navAll').removeClass('show');
+        $('#all').removeClass('active');
+        $('#all').removeClass('show');
+        
+        _this.tabShow = "active show"
+        window.history.pushState("","",'index.html');
+      
+      }else{
+        _this.tabShow = ""
+      }
+      
+        // User is signed in, see docs for a list of available properties
+        // https://firebase.google.com/docs/reference/js/firebase.User
+        // ...
+      } else {
+        // User is signed out
+        // ...
+      }
+    });
+  },
+  beforeMount: async function() {
+    
+  },
+})
+
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+</body>
+</html>
+
