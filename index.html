@@ -545,7 +545,7 @@ var app = new Vue({
     getStocks : function(StockKey){
 
       return new Promise(resolve =>{
-        axios.get('https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol='+StockKey+'&apikey=GA035EB92K27JQ8U').then(function (response) {
+        axios.get('https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol='+StockKey+'&apikey=5YDPWTMAT5WZ42K0').then(function (response) {
         
             return resolve(response);
         
